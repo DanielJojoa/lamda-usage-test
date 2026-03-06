@@ -14,13 +14,13 @@ const {
   AWS_SESSION_TOKEN,
   S3_BUCKET_NAME,
   S3_FOLDER,
-  FILES_API_URL = 'https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files',
+  FILES_API_URL,
   PORT = 3000,
 } = process.env;
 
-if (!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !S3_BUCKET_NAME) {
+if (!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !S3_BUCKET_NAME || !FILES_API_URL) {
   console.error(
-    'Faltan variables de entorno requeridas. Revisa .env y define AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY y S3_BUCKET_NAME.'
+    'Faltan variables de entorno requeridas. Revisa .env y define AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME y FILES_API_URL.'
   );
   process.exit(1);
 }
@@ -89,7 +89,7 @@ app.get('/health', (_req, res) => {
 app.get('/files', async (_req, res) => {
   try {
     console.log(`Consultando ${FILES_API_URL}...`);
-    
+
     const data = await new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('Timeout: La petición tardó más de 30 segundos'));
@@ -102,17 +102,17 @@ app.get('/files', async (_req, res) => {
       }, (response) => {
         clearTimeout(timeoutId);
         console.log(`Respuesta recibida: ${response.statusCode}`);
-        
+
         let rawData = '';
-        
+
         response.on('data', (chunk) => {
           rawData += chunk;
         });
-        
+
         response.on('end', () => {
           try {
             let parsedData = JSON.parse(rawData);
-            
+
             // API Gateway + Lambda proxy can return payload as:
             // { statusCode, headers, body: "[...]" }
             if (parsedData && typeof parsedData === 'object' && typeof parsedData.body === 'string') {
@@ -122,7 +122,7 @@ app.get('/files', async (_req, res) => {
                 parsedData = [];
               }
             }
-            
+
             // Some integrations return { items: [...] } or { Items: [...] }
             if (parsedData && typeof parsedData === 'object' && !Array.isArray(parsedData)) {
               if (Array.isArray(parsedData.items)) {
@@ -131,7 +131,7 @@ app.get('/files', async (_req, res) => {
                 parsedData = parsedData.Items;
               }
             }
-            
+
             if (response.statusCode !== 200) {
               reject({
                 statusCode: response.statusCode,
@@ -153,7 +153,7 @@ app.get('/files', async (_req, res) => {
     return res.json(data);
   } catch (error) {
     console.error('Error consultando endpoint de archivos:', error);
-    
+
     if (error.statusCode) {
       return res.status(error.statusCode).json({
         ok: false,
@@ -161,7 +161,7 @@ app.get('/files', async (_req, res) => {
         details: error.data,
       });
     }
-    
+
     return res.status(500).json({
       ok: false,
       message: 'Error interno consultando listado de archivos.',
