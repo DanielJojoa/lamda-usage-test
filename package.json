@@ -1,0 +1,27 @@
+{
+  "name": "s3-upload-demo",
+  "version": "1.0.0",
+  "description": "Aplicación simple con Node.js para cargar archivos a Amazon S3",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "node",
+    "express",
+    "s3",
+    "upload"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.882.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

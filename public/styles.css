@@ -1,0 +1,142 @@
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #0f766e;
+  --primary-dark: #115e59;
+  --success: #166534;
+  --error: #b91c1c;
+  --border: #d1d5db;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top left, #e0f2fe, var(--bg));
+  color: var(--text);
+}
+
+.container {
+  width: 100%;
+  max-width: 760px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1.6rem;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+form {
+  display: grid;
+  gap: 12px;
+}
+
+input[type='file'] {
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: white;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--primary-dark);
+}
+
+.status {
+  margin-top: 16px;
+  min-height: 20px;
+  font-size: 0.95rem;
+}
+
+.status.success {
+  color: var(--success);
+}
+
+.status.error {
+  color: var(--error);
+}
+
+.files-section {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.files-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.files-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.file-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f9fafb;
+}
+
+.file-item.empty {
+  color: var(--muted);
+}
+
+.file-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.file-meta {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .container {
+    max-width: 100%;
+    padding: 18px;
+  }
+}
