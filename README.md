@@ -52,6 +52,29 @@ Abre `http://localhost:3000` y sube un archivo.
 - `POST /upload` carga de archivo (campo `file`)
 - `GET /files` proxy al endpoint de listado para poblar el frontend
 
+## Arquitectura
+
+### Flujo S3 con Lambda
+
+```mermaid
+flowchart LR
+	U[Usuario / App Web] -->|Sube archivo| S3[(Bucket S3)]
+	S3 -->|Evento ObjectCreated| L1[Lambda save-file-metadata]
+	L1 -->|Guarda metadata| DDB[(DynamoDB FileMetadata)]
+```
+
+### Flujo API AWS con Lambda
+
+```mermaid
+flowchart LR
+	C[Cliente / Frontend] -->|GET /files| APIGW[API Gateway HTTP API]
+	APIGW -->|Invoca| L2[Lambda list-files-metadata]
+	L2 -->|Scan| DDB2[(DynamoDB FileMetadata)]
+	DDB2 -->|Items| L2
+	L2 -->|JSON| APIGW
+	APIGW -->|Respuesta| C
+```
+
 ## Lambda de listado (referencia)
 
 Se agregó un ejemplo en:
