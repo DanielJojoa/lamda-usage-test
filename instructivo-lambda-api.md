@@ -1,82 +1,32 @@
-# Instructivo: Crear Lambda como API con AWS CLI
+# Instructivo: Crear Lambda como API para Listar Archivos
 
-## 📋 Requisitos Previos
-
-- AWS CLI instalado y configurado (`aws configure`)
-- Permisos de IAM adecuados
-- Python 3.9+ (para el código Lambda)
-- Tabla DynamoDB creada (nombre: `FileMetadata`)
+Basado en el historial de comandos ejecutados para crear una API HTTP con Lambda que lista archivos desde DynamoDB.
 
 ---
 
-## 1️⃣ Crear el Rol IAM para Lambda
+## 📋 Información del Proyecto
+
+- **Account ID**: `418386702932`
+- **Región**: `us-east-1`
+- **Rol IAM**: `arn:aws:iam::418386702932:role/LabRole`
+- **Tabla DynamoDB**: `FileMetadata`
+- **Bucket S3**: `demo-archivos-daniel-2026`
+
+---
+
+## 1️⃣ Crear el Código de la Lambda
+
+### Paso 1.1: Crear el archivo Python
 
 ```bash
-# Crear archivo de política de confianza
-cat > lambda-trust-policy.json << 'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-
-# Crear el rol
-aws iam create-role \
-  --role-name LambdaListFilesRole \
-  --assume-role-policy-document file://lambda-trust-policy.json
-
-# Adjuntar políticas necesarias
-aws iam attach-role-policy \
-  --role-name LambdaListFilesRole \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-# Crear política personalizada para DynamoDB
-cat > lambda-dynamodb-policy.json << 'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:Scan",
-        "dynamodb:Query",
-        "dynamodb:GetItem"
-      ],
-      "Resource": "arn:aws:dynamodb:*:*:table/FileMetadata"
-    }
-  ]
-}
-EOF
-
-aws iam put-role-policy \
-  --role-name LambdaListFilesRole \
-  --policy-name DynamoDBReadPolicy \
-  --policy-document file://lambda-dynamodb-policy.json
+nano list_files_lambda.py
 ```
 
-**ARN del Rol creado:**
-```
-arn:aws:iam::<ACCOUNT_ID>:role/LambdaListFilesRole
-```
-*(Reemplaza `<ACCOUNT_ID>` con tu ID de cuenta AWS)*
+### Paso 1.2: Código de la Lambda
 
----
-
-## 2️⃣ Crear el Código de la Lambda
-
-### Código Lambda (Python 3.9)
+Pega el siguiente código:
 
 ```python
-# lambda/list_files_lambda.py
-
 import json
 import os
 from decimal import Decimal
@@ -126,219 +76,192 @@ def lambda_handler(event, context):
         }
 ```
 
-### Empaquetar el Código
-
-```bash
-# Crear directorio temporal
-mkdir -p lambda-package
-cd lambda-package
-
-# Copiar el código
-cp ../lambda/list_files_lambda.py .
-
-# Si necesitas dependencias adicionales (opcional)
-# pip install -t . nombre-paquete
-
-# Crear el archivo ZIP
-zip -r ../list_files_lambda.zip .
-
-# Volver al directorio principal
-cd ..
-rm -rf lambda-package
-```
+Guarda el archivo (Ctrl+O, Enter, Ctrl+X).
 
 ---
 
-## 3️⃣ Crear la Función Lambda
+## 2️⃣ Empaquetar y Crear la Función Lambda
+
+### Paso 2.1: Crear el archivo ZIP
 
 ```bash
-# Crear la función Lambda
+zip function-list.zip list_files_lambda.py
+```
+
+### Paso 2.2: Crear la función Lambda en AWS
+
+```bash
 aws lambda create-function \
-  --function-name ListFilesFunction \
-  --runtime python3.9 \
-  --role arn:aws:iam::<ACCOUNT_ID>:role/LambdaListFilesRole \
+  --function-name list-files-metadata \
+  --runtime python3.11 \
   --handler list_files_lambda.lambda_handler \
-  --zip-file fileb://list_files_lambda.zip \
-  --timeout 30 \
-  --memory-size 256 \
-  --environment Variables={DYNAMODB_TABLE_NAME=FileMetadata} \
-  --region us-east-1
+  --zip-file fileb://function-list.zip \
+  --role arn:aws:iam::418386702932:role/LabRole
 ```
 
 **Respuesta esperada:**
 ```json
 {
-    "FunctionName": "ListFilesFunction",
-    "FunctionArn": "arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:ListFilesFunction",
-    "Runtime": "python3.9",
-    "Role": "arn:aws:iam::<ACCOUNT_ID>:role/LambdaListFilesRole",
+    "FunctionName": "list-files-metadata",
+    "FunctionArn": "arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata",
+    "Runtime": "python3.11",
+    "Role": "arn:aws:iam::418386702932:role/LabRole",
     "Handler": "list_files_lambda.lambda_handler",
     "State": "Active"
 }
 ```
 
-**ID de la Función:**
-```
-ListFilesFunction
-```
-
-**ARN de la Función:**
-```
-arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:ListFilesFunction
-```
+**Información de la Lambda creada:**
+- **Nombre**: `list-files-metadata`
+- **ARN**: `arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata`
 
 ---
 
-## 4️⃣ Crear API Gateway (REST API)
+## 3️⃣ Crear API Gateway HTTP API (v2)
+
+### Paso 3.1: Crear la API HTTP
 
 ```bash
-# Crear API REST
-aws apigateway create-rest-api \
-  --name "FilesAPI" \
-  --description "API para listar archivos desde DynamoDB" \
-  --region us-east-1
+aws apigatewayv2 create-api \
+  --name metadata-api \
+  --protocol-type HTTP
 ```
 
-**Guardar el `api-id` de la respuesta:**
+**Respuesta:**
 ```json
 {
-    "id": "t9u1v220t1",
-    "name": "FilesAPI",
-    "createdDate": "2026-03-06T..."
+    "ApiId": "t9u1v220t1",
+    "Name": "metadata-api",
+    "ProtocolType": "HTTP",
+    "RouteSelectionExpression": "$request.method $request.path",
+    "ApiEndpoint": "https://t9u1v220t1.execute-api.us-east-1.amazonaws.com"
 }
 ```
 
-**API ID:**
+**API ID creado:**
 ```
 t9u1v220t1
 ```
 
-### Obtener el Resource ID raíz
+### Paso 3.2: (Opcional) Listar APIs para verificar
 
 ```bash
-aws apigateway get-resources \
-  --rest-api-id t9u1v220t1 \
-  --region us-east-1
-```
-
-**Root Resource ID:**
-```
-<ROOT_RESOURCE_ID>
-```
-
-### Crear el recurso `/files`
-
-```bash
-aws apigateway create-resource \
-  --rest-api-id t9u1v220t1 \
-  --parent-id <ROOT_RESOURCE_ID> \
-  --path-part files \
-  --region us-east-1
-```
-
-**Files Resource ID:**
-```
-<FILES_RESOURCE_ID>
+aws apigatewayv2 get-apis
 ```
 
 ---
 
-## 5️⃣ Configurar el Método GET
+## 4️⃣ Crear Integración con Lambda
+
+### Paso 4.1: Crear la integración
 
 ```bash
-# Crear método GET
-aws apigateway put-method \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method GET \
-  --authorization-type NONE \
-  --region us-east-1
+aws apigatewayv2 create-integration \
+  --api-id t9u1v220t1 \
+  --integration-type AWS_PROXY \
+  --integration-uri arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata \
+  --payload-format-version 2.0
+```
 
-# Integrar con Lambda
-aws apigateway put-integration \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method GET \
-  --type AWS_PROXY \
-  --integration-http-method POST \
-  --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:ListFilesFunction/invocations \
-  --region us-east-1
+**Respuesta:**
+```json
+{
+    "IntegrationId": "qj3v01f",
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": "arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata",
+    "PayloadFormatVersion": "2.0"
+}
+```
+
+**Integration ID creado:**
+```
+qj3v01f
+```
+
+### Paso 4.2: (Opcional) Verificar integraciones
+
+```bash
+aws apigatewayv2 get-integrations --api-id t9u1v220t1
 ```
 
 ---
 
-## 6️⃣ Dar Permisos a API Gateway para Invocar Lambda
+## 5️⃣ Crear Ruta (Route)
+
+### Paso 5.1: Crear la ruta GET /files
+
+```bash
+aws apigatewayv2 create-route \
+  --api-id t9u1v220t1 \
+  --route-key "GET /files" \
+  --target integrations/qj3v01f
+```
+
+**Respuesta:**
+```json
+{
+    "RouteId": "abc123",
+    "RouteKey": "GET /files",
+    "Target": "integrations/qj3v01f"
+}
+```
+
+---
+
+## 6️⃣ Dar Permisos a API Gateway
+
+### Paso 6.1: Añadir permiso de invocación
 
 ```bash
 aws lambda add-permission \
-  --function-name ListFilesFunction \
-  --statement-id apigateway-invoke \
+  --function-name list-files-metadata \
+  --statement-id apigatewayinvoke \
   --action lambda:InvokeFunction \
-  --principal apigateway.amazonaws.com \
-  --source-arn "arn:aws:execute-api:us-east-1:<ACCOUNT_ID>:t9u1v220t1/*/*/files" \
-  --region us-east-1
+  --principal apigateway.amazonaws.com
+```
+
+**Respuesta:**
+```json
+{
+    "Statement": "{\"Sid\":\"apigatewayinvoke\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"apigateway.amazonaws.com\"},\"Action\":\"lambda:InvokeFunction\",\"Resource\":\"arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata\"}"
+}
 ```
 
 ---
 
-## 7️⃣ Configurar CORS (Opcional)
+## 7️⃣ Crear y Desplegar Stage
+
+### Paso 7.1: Crear el stage "prod" con auto-deploy
 
 ```bash
-# Crear método OPTIONS para CORS
-aws apigateway put-method \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method OPTIONS \
-  --authorization-type NONE \
-  --region us-east-1
-
-aws apigateway put-integration \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method OPTIONS \
-  --type MOCK \
-  --request-templates '{"application/json": "{\"statusCode\": 200}"}' \
-  --region us-east-1
-
-aws apigateway put-method-response \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method OPTIONS \
-  --status-code 200 \
-  --response-parameters '{"method.response.header.Access-Control-Allow-Headers": true, "method.response.header.Access-Control-Allow-Methods": true, "method.response.header.Access-Control-Allow-Origin": true}' \
-  --region us-east-1
-
-aws apigateway put-integration-response \
-  --rest-api-id t9u1v220t1 \
-  --resource-id <FILES_RESOURCE_ID> \
-  --http-method OPTIONS \
-  --status-code 200 \
-  --response-parameters '{"method.response.header.Access-Control-Allow-Headers": "'"'"'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"'"'", "method.response.header.Access-Control-Allow-Methods": "'"'"'GET,OPTIONS'"'"'", "method.response.header.Access-Control-Allow-Origin": "'"'"'*'"'"'"}' \
-  --region us-east-1
-```
-
----
-
-## 8️⃣ Desplegar la API
-
-```bash
-# Crear deployment y stage
-aws apigateway create-deployment \
-  --rest-api-id t9u1v220t1 \
+aws apigatewayv2 create-stage \
+  --api-id t9u1v220t1 \
   --stage-name prod \
-  --stage-description "Producción" \
-  --description "Primer despliegue de la API" \
-  --region us-east-1
+  --auto-deploy
 ```
 
-**URL del Endpoint:**
+**Respuesta:**
+```json
+{
+    "StageName": "prod",
+    "AutoDeploy": true,
+    "CreatedDate": "2026-03-06T...",
+    "DefaultRouteSettings": {},
+    "DeploymentId": "xyz789"
+}
+```
+
+---
+
+## 🎯 URL del Endpoint Creado
+
 ```
 https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files
 ```
 
 ---
 
-## 9️⃣ Probar la API
+## 🧪 Probar la API
 
 ### Con curl
 
@@ -348,7 +271,7 @@ curl -X GET https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files
 
 ### Con navegador
 
-Abre en tu navegador:
+Abre directamente en tu navegador:
 ```
 https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files
 ```
@@ -374,92 +297,121 @@ https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files
 
 ---
 
+## 📝 Variable de Entorno para el Proyecto
+
+Agrega a tu archivo `.env`:
+
+```env
+FILES_API_URL=https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files
+```
+
+---
+
 ## 🔄 Actualizar el Código de la Lambda
 
-Si necesitas actualizar el código después:
+Si necesitas modificar el código de la Lambda:
+
+### Paso 1: Editar el archivo
 
 ```bash
-# 1. Modificar el código
-# 2. Empaquetar nuevamente
-cd lambda-package
-zip -r ../list_files_lambda.zip .
-cd ..
+nano list_files_lambda.py
+```
 
-# 3. Actualizar la función
+### Paso 2: Re-empaquetar
+
+```bash
+zip function-list.zip list_files_lambda.py
+```
+
+### Paso 3: Actualizar la función
+
+```bash
 aws lambda update-function-code \
-  --function-name ListFilesFunction \
-  --zip-file fileb://list_files_lambda.zip \
-  --region us-east-1
+  --function-name list-files-metadata \
+  --zip-file fileb://function-list.zip
 ```
 
 ---
 
-## 🗑️ Limpiar Recursos (Opcional)
+## 🗑️ Eliminar Recursos (Opcional)
+
+### Eliminar la API
 
 ```bash
-# Eliminar la API
-aws apigateway delete-rest-api \
-  --rest-api-id t9u1v220t1 \
-  --region us-east-1
+aws apigatewayv2 delete-api --api-id t9u1v220t1
+```
 
-# Eliminar la función Lambda
-aws lambda delete-function \
-  --function-name ListFilesFunction \
-  --region us-east-1
+### Eliminar la Lambda
 
-# Eliminar el rol IAM
-aws iam detach-role-policy \
-  --role-name LambdaListFilesRole \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-aws iam delete-role-policy \
-  --role-name LambdaListFilesRole \
-  --policy-name DynamoDBReadPolicy
-
-aws iam delete-role \
-  --role-name LambdaListFilesRole
+```bash
+aws lambda delete-function --function-name list-files-metadata
 ```
 
 ---
 
-## 📝 Notas Importantes
+## 📊 Resumen de Recursos Creados
 
-1. **Reemplazar valores**: Sustituye `<ACCOUNT_ID>`, `<ROOT_RESOURCE_ID>`, y `<FILES_RESOURCE_ID>` con tus valores reales.
-
-2. **Región**: Los comandos usan `us-east-1`. Cambia según tu configuración.
-
-3. **Seguridad**: En producción, considera:
-   - Autenticación con API Keys o Cognito
-   - Limitar CORS a dominios específicos
-   - Implementar rate limiting
-
-4. **Monitoreo**: Revisa los logs en CloudWatch:
-   ```bash
-   aws logs tail /aws/lambda/ListFilesFunction --follow
-   ```
-
-5. **Variables de entorno**: La tabla DynamoDB se configura como variable de entorno en la Lambda.
+| Recurso | Nombre/ID | ARN/URL |
+|---------|-----------|---------|
+| **Lambda Function** | `list-files-metadata` | `arn:aws:lambda:us-east-1:418386702932:function:list-files-metadata` |
+| **API Gateway** | `metadata-api` | `t9u1v220t1` |
+| **Integration** | - | `qj3v01f` |
+| **Stage** | `prod` | Auto-deploy habilitado |
+| **Endpoint** | GET /files | `https://t9u1v220t1.execute-api.us-east-1.amazonaws.com/prod/files` |
 
 ---
 
-## ✅ Checklist de Verificación
+## 🔍 Comandos de Verificación
 
-- [ ] Rol IAM creado con permisos correctos
-- [ ] Código Lambda empaquetado y subido
-- [ ] Función Lambda creada y activa
-- [ ] API Gateway REST API creada
-- [ ] Recurso `/files` creado
-- [ ] Método GET configurado
-- [ ] Integración Lambda + API Gateway configurada
-- [ ] Permisos de invocación otorgados
-- [ ] CORS configurado (si es necesario)
-- [ ] Deployment creado en stage `prod`
-- [ ] URL del endpoint probada y funcional
+### Ver logs de la Lambda
+
+```bash
+aws logs tail /aws/lambda/list-files-metadata --follow
+```
+
+### Listar todas las APIs
+
+```bash
+aws apigatewayv2 get-apis
+```
+
+### Ver detalles de una ruta
+
+```bash
+aws apigatewayv2 get-routes --api-id t9u1v220t1
+```
+
+### Invocar la Lambda directamente
+
+```bash
+aws lambda invoke \
+  --function-name list-files-metadata \
+  --payload '{}' \
+  response.json && cat response.json
+```
 
 ---
 
-## 🔗 Referencias
+## ✅ Checklist
 
-- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/)
-- [API Gateway Documentation](https://docs.aws.amazon.com/apigateway/)
-- [AWS CLI Reference](https://docs.aws.amazon.com/cli/)
+- [x] Código Lambda creado (`list_files_lambda.py`)
+- [x] Función Lambda desplegada (`list-files-metadata`)
+- [x] API Gateway HTTP creada (`metadata-api` - `t9u1v220t1`)
+- [x] Integración Lambda configurada (`qj3v01f`)
+- [x] Ruta GET /files creada
+- [x] Permisos de invocación otorgados
+- [x] Stage prod desplegado con auto-deploy
+- [x] Endpoint funcional y probado
+- [x] Variable `FILES_API_URL` configurada en .env
+
+---
+
+## 📚 Notas
+
+- **API Gateway v2 (HTTP API)** se usa en lugar de REST API (más simple y económico)
+- **Auto-deploy** está habilitado, por lo que los cambios se despliegan automáticamente
+- **CORS** está configurado directamente en la respuesta de la Lambda
+- **Payload Format 2.0** simplifica el formato de eventos de Lambda
+- El rol **LabRole** debe tener permisos para:
+  - `dynamodb:Scan` en la tabla FileMetadata
+  - `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`
